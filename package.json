@@ -1,8 +1,9 @@
 {
     "name": "coprocess",
-    "description": "",
-    "author": "andras at andrasq.com",
+    "description": "inter-process rpc wrapped in oo syntax",
     "main": "coprocess.js",
     "files": "README.md coprocess.js",
+
+    "author": "andras at andrasq.com",
     "license": "Apache-2.0"
 }
