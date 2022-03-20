@@ -10,8 +10,8 @@ if (process.env.NODE_MASTER !== 'true') {
 console.log("AR: master");
     process.env.NODE_MASTER = true;
     wp.fork(function() {
-        var Coprocess = require('./').Coprocess;
-        var wp = new Coprocess();
+        var WorkerProcess = require('./').WorkerProcess;
+        var wp = new WorkerProcess();
         wp.listen({
             echo: function(x, cb) { cb = arguments[arguments.length - 1]; cb(null, x) },
             emit100k: function(arg, cb) {

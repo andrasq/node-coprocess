@@ -1,5 +1,6 @@
 {
     "name": "coprocess",
+    "version": "0.1.0",
     "description": "inter-process rpc wrapped in oo syntax",
     "main": "coprocess.js",
     "files": "README.md coprocess.js",

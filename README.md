@@ -3,14 +3,15 @@ Coprocess
 
 Inter-process RPC wrapped in OO notation.
 
-    var Coprocess = require('coprocess');
+    var Coprocess = require('coprocess').Coprocess;
     var cp = Coprocess.fork(function() {
-        require("coprocess").fork().listen({
+        var WorkerProcess = require("coprocess").WorkerProcess;
+        new WorkerProcess().listen({
             echo: function(x, cb) { cb(null, x) },
         });
     });
 
-    cp.call('echo', 123, function(err, reponse) {
+    cp.call('echo', 1234, function(err, reponse) {
         // => err == null, response == 1234
     });
 
