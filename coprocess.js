@@ -8,6 +8,7 @@ module.exports.WorkerProcess = WorkerProcess;
 
 var setImmediate = eval('global.setImmediate || function(fn, a, b) { process.nextTick(function() { fn(a, b) }) }')
 
+var Coprocess = WorkerProcess;
 function WorkerProcess( ) {
     this.nextId = 1;
     this.calls = [];
@@ -42,11 +43,11 @@ function WorkerProcess( ) {
         else process.disconnect && (process.disconnect(), process.removeListener('message', this._handleCall));
     }
 
-    this.callCount = 0;
+    this.callbackCount = 0;
     this._invokeCallback = function _invokeCallback( msg ) {
         var id = msg.id, cb = this.callbacks[id];
         this.callbacks[id] = undefined;
-        if (++this.callCount & 0xFFF === 0) this.callbacks = qibl.omitUndefined(this.callbacks);
+        if (++this.callbackCount & 0xFFF === 0) this.callbacks = qibl.omitUndefined(this.callbacks);
         cb && cb(msg.err ? qibl.objectToError(msg.err) : msg.err, msg.value);
     }
     this._handleCall = function _handleCall( msg ) {
@@ -65,8 +66,8 @@ function WorkerProcess( ) {
         try { target.send(msg, null, this._onSendError) } catch (err) { this._onSendError(err) }
     }
     this._onSendError = function _onSendError(err) {
-        if (err) { err = (!target) ? new Error('not forked yet')
-            : (!target.send && !target.connected) ? new Error('not connected') : err;
+        if (err) { err = (/ 'send' of /.test(err.message)) ? new Error('not forked yet')
+            : (!process.send && !process.connected) ? new Error('not connected') : err;
             self._invokeCallback({ id: msg.id, err: err });
         }
     }
@@ -82,39 +83,69 @@ console.log("AR: master");
     wp.fork(require.resolve('./wp-worker'));
     var ncalls = 100000, ndone = 0;
     var t1 = Date.now();
+
+    var whenFinished = null;
     function whenDone(err, ret) {
         ndone += 1;
         if (ndone >= ncalls) {
             console.log("AR: %dk calls in", ncalls/1000, Date.now() - t1, "ms");
-            wp.close();
+            whenFinished();
         }
     }
-    testConcurrent();
+    function waitForResponses(count, type, done) {
+        var ndone = 0;
+        return function(err, ret) {
+            if (err) console.log(err.message);
+            ndone += 1;
+            if (ndone >= count) {
+                console.log("AR: %d %s calls in", count, type, Date.now() - t1, "ms");
+                done();
+            }
+        }
+    }
+    //testConcurrent();
     //testSeries();
 
-    function testConcurrent() {
-        qibl.repeatFor(
-            ncalls,
-            function(cb, i) { wp.call('echo', 123, whenDone); (i & 0xFFF) ? cb(): setImmediate(cb) },
-            function(err) {
-                console.log("AR: Done.");
-            }
-        )
-        // up to 260k/s concurrent calls
-    }
-    function testSeries() {
-        qibl.repeatFor(
-            ncalls,
-            function(cb, i) { wp.call('echo', 123, cb) },
-            function(err) {
-                console.log("AR: %dk calls in", ncalls/1000, Date.now() - t1, "ms");
-                console.log("AR: Done.");
-                // FIXME: node-v0.6 does not terminate the child process on disconnect
-                wp.close();
-            }
-        )
-        // up to 85k/s back-to-back calls
-    }
+    qibl.runSteps([
+        function(next) {
+            t1 = Date.now();
+            ndone = 0;
+            next();
+        },
+        function testConcurrent(next) {
+            console.log("AR: concurrent:");
+            var whenDone = waitForResponses(ncalls, 'concurrent', next);
+            qibl.repeatFor(
+                ncalls,
+                function(cb, i) { wp.call('echo', 123, whenDone); (i & 0xFFF) ? cb(): setImmediate(cb) },
+                function(){}
+            )
+            // up to 270k/s concurrent calls
+        },
+        function(next) {
+            t1 = Date.now();
+            ndone = 0;
+            next();
+        },
+        function testSeries(next) {
+            whenFinished = next;
+            console.log("AR: series:");
+            qibl.repeatFor(
+                ncalls,
+                function(cb, i) { wp.call('echo', 123, (i & 0xFFF) ? cb : function(){ setImmediate(cb) }) },
+                function(){
+                    console.log("AR: %dk series calls in", ncalls/1000, Date.now() - t1, "ms");
+                    next();
+                }
+            )
+            // up to 89k/s back-to-back calls
+        },
+    ],
+    function(err) {
+        console.log("AR: Done.");
+        // FIXME: node-v0.6 does not terminate the child process on disconnect
+        wp.close();
+    })
 }
 else {
     console.log("AR: worker");
