@@ -1,5 +1,8 @@
 Coprocess
 =========
+[![Build Status](https://api.travis-ci.com/andrasq/node-coprocess.svg?branch=master)](https://travis-ci.com/andrasq/node-coprocess?branch=master)
+[![Coverage Status](https://codecov.io/github/andrasq/node-coprocess/coverage.svg?branch=master)](https://codecov.io/github/andrasq/node-coprocess?branch=master)
+
 
 Inter-process RPC wrapped in OO notation.
 
