@@ -1,0 +1,8 @@
+{
+    "name": "coprocess",
+    "description": "",
+    "author": "andras at andrasq.com",
+    "main": "coprocess.js",
+    "files": "README.md coprocess.js",
+    "license": "Apache-2.0"
+}
