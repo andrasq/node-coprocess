@@ -1,3 +1,10 @@
+/*
+ * coprocess -- inter-process rpc wrapped in oo syntax
+ *
+ * Copyright 2021-2022 Andras Radics
+ * Licensed under the Apache License, Version 2.0
+ */
+
 'use strict';
 
 var Coprocess = require('./').Coprocess;

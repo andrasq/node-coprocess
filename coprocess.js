@@ -1,4 +1,11 @@
-// 'use strict';
+/*
+ * coprocess -- inter-process rpc wrapped in oo syntax
+ *
+ * Copyright 2021-2022 Andras Radics
+ * Licensed under the Apache License, Version 2.0
+ */
+
+'use strict';
 
 var cp = require('child_process');
 var fs = require('fs');
@@ -25,7 +32,7 @@ function Coprocess( ) {
             var src = ';(' + script.toString() + ')();';
             script = qibl.tmpfile({ dir: '.', name: 'node-coprocess-', ext: '.js' });
             fs.writeFileSync(script, src);
-            // TODO: remove the source file when no longer needed
+            // TODO: remove the source file when no longer needed, not on process exit
         }
         fs.closeSync(fs.openSync(script, 0)); // probe the script to avoid a node >= v4 uncatchable error
         this.child = cp.fork(script, null, { env: process.env }); // node-v0.6 did not inherit process.env yet
@@ -35,7 +42,7 @@ function Coprocess( ) {
             setImmediate(function() { for (var id in callbacks) self._handleMessage({ id: id, err: err }) }) }
         this.child.on('disconnect', onDisconnect);
         this.child.on('exit', onDisconnect);
-// FIXME: if child unable to send it emits an error that must be listened for, else is uncaught exception!
+        // if child unable to send it emits an error that must be listened for, else is uncaught exception!
         // this.child.on('error', function(err) { this.emit('error', err) });
         this.child.on('error', function(err) {});
         return this;
