@@ -5,8 +5,8 @@ node_js:
 before_install:
   # use npm2, npm@1.2.30 that travis uses for node-v0.8 breaks
   - mkdir -p $HOME/bin $HOME/lib
-  - npm install qnit npm@2.15.0
-  - cp -rp node_modules $HOME/lib/
+  - npm install -g qnit npm@2.15.0
+  #- cp -rp node_modules $HOME/lib/
   - ln -sf ../lib/node_modules/.bin/qnit $HOME/bin/qnit
   - ln -sf ../lib/node_modules/.bin/npm $HOME/bin/npm2
   # work around weird travis-ci glitch: [Error: Cannot find module 'qibl']
