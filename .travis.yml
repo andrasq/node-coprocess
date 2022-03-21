@@ -6,7 +6,8 @@ before_install:
   # use npm2, npm@1.2.30 that travis uses for node-v0.8 breaks
   # prefix is incompatible with nvm 0.39.1
   # - echo prefix=$HOME >> $HOME/.npmrc
-  - which npm
+  - which -a npm
+  - ls node_modules
   - mkdir -p $HOME/bin $HOME/lib
   # cannot install npm into local node_modules because of npm files read/write race condition?
   # try caching npm first
