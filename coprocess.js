@@ -10,7 +10,7 @@
 var cp = require('child_process');
 var fs = require('fs');
 
-var qibl = require('../qibl');
+var qibl = require('qibl');
 
 module.exports.Coprocess = Coprocess;
 module.exports.WorkerProcess = Coprocess;

@@ -2,6 +2,7 @@
   "name": "coprocess",
   "version": "0.1.0",
   "description": "inter-process rpc wrapped in oo syntax",
+  "keywords": ["rpc", "process", "concurrent", "parallel", "worker"],
   "main": "coprocess.js",
   "files": "README.md coprocess.js",
   "license": "Apache-2.0",
@@ -9,7 +10,7 @@
   "repository": "https://github.com/andras/node-coprocess",
 
   "dependencies": {
-    "qibl": "1.18.0"
+    "qibl": "1.19.1"
   },
 
   "scripts": {

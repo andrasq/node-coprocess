@@ -8,7 +8,7 @@
 'use strict';
 
 var Coprocess = require('./').Coprocess;
-var qibl = require('../qibl');
+var qibl = require('qibl');
 
 // /** quicktest:
 
