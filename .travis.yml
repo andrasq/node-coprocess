@@ -4,6 +4,7 @@ node_js:
 
 before_install:
   # use npm2, npm@1.2.30 that travis uses for node-v0.8 breaks
+  - echo prefix=$HOME >> $HOME/.npmrc
   - mkdir -p $HOME/bin $HOME/lib
   - npm install -g qnit npm@2.15.0
   #- cp -rp node_modules $HOME/lib/
