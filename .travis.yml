@@ -27,5 +27,5 @@ before_install:
 after_success:
   - if [ `node -v` != "v5.8.0" ]; then exit; fi
   - npm install -g nyc@8.4.0 coveralls@3.0.2
-  - npm run coverage
-  - nyc report -r text-lcov | coveralls
+  - npm run coverage && codecov
+  #- nyc report -r text-lcov | coveralls
