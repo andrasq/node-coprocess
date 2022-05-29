@@ -26,28 +26,31 @@ Api
 
 Listen for named events emitted by the remote.
 
-### cp.emit( event [, value] )
+### cp.emit( event [, value [...]] )
 
-Emit a named event with an optional value.
+Emit a named event with an optional value to the registered event listener.
+
+### cp.listen( methods )
+
+Register handlers for the calls included in the `methods` name-value hash.
 
 ### cp.call( method [, arg [...]], callback )
 
 Invoke the named `method` with the given argument(s).  The callback will be run once the
 call completes with the returned result, if any.
 
-### cp.process( methods )
 
-Register handlers for the named methods.
-
-
-Message Format
+Message Formats
 ----------------
 
-    {
-      id,
-      name,
-      val,
-      av,
-      res,
-      err,
-    }
+Message
+
+    { id, name, arg|argv }
+
+Response
+
+    { id, result }
+
+Event
+
+    { name, arg|argv }

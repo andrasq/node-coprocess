@@ -26,7 +26,7 @@ function Coprocess( ) {
 
     var self = this;
     this.fork = function fork( code ) {
-// TODO: optional fork timeout
+        // TODO: optional fork timeout for when child script does not signal 'ready'
         var script = code;
         if (typeof code === 'function') {
             var src = ';(' + script.toString() + ')();';
@@ -48,7 +48,7 @@ function Coprocess( ) {
         return this;
     }
     this.call = function call( name, arg, /* ...VARARGS, */ cb ) {
-// TODO: optional call timeout
+        // TODO: optional call timeout
         var callback = arguments[arguments.length - 1];
         if (typeof callback !== 'function') throw new Error('callback required');
         var id = '' + this.nextId++;
@@ -66,7 +66,7 @@ function Coprocess( ) {
             process.removeListener('message', this._handleMessage);
             process.on('message', this._handleMessage);
         } else {
-            if (typeof listener !== 'function') throw new Error('function required');
+            if (typeof listener !== 'function') throw new Error('listener function required');
             this.listeners[String(event)] = listener;
         }
     }
@@ -74,8 +74,13 @@ function Coprocess( ) {
         this.listeners[event] === listener && delete this.listeners[event];
     }
 
-    this.emit = function emit( event, value ) {
-        this._sendTo(this.child || process, { name: event, result: value });
+    this.emit = function emit( event, value /* ...VARARGS */ ) {
+        if (arguments.length > 2) {
+            var argv = new Array();
+            for (var i = 1; i < arguments.length; i++) argv.push(arguments[i]);
+            this._sendTo(this.child, { name: event, argv: argv, arg: 0 });
+        }
+        else this._sendTo(this.child || process, { name: event, argv: 0, arg: value });
     }
     this.close = function close( ) {
         if (this.child) this.child.disconnect ? (this.child.connected && this.child.disconnect())
@@ -92,7 +97,6 @@ function Coprocess( ) {
         } else if (self.calls[msg.name]) {
             self._handleCall(msg);
         } else {
-            if (self.calls[msg.name]) return 
             var cb = self.callbacks[msg.id];
             self.callbacks[msg.id] = undefined;
             if (++self.callbackCount >= 100000) self.gc();
@@ -115,7 +119,7 @@ function Coprocess( ) {
         // EPIPE is returned to the send() callback, but ERR_IPC_CHANNEL_CLOSED always throws
         // some node versions delay the 'disconnect' event, be sure to call back just once
         try { target.send(msg, null, self._onSendError) } catch (err) { self._onSendError(err) }
-// TODO: emit errors instead of global notifier
+        // TODO: emit errors instead of global notifier
         function _onSendError(err) {
             if (err) { err = (/ 'send' of /.test(err.message)) ? new Error('not forked yet')
                 : (!process.send && !process.connected) ? new Error('not connected') : err;
