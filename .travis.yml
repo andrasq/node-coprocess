@@ -3,35 +3,30 @@ node_js:
   - 5.8.0
 
 before_install:
-  # use npm2, npm@1.2.30 that travis uses for node-v0.8 breaks
-  # prefix is incompatible with nvm 0.39.1
-  # - echo prefix=$HOME >> $HOME/.npmrc
-  - mkdir -p $HOME/bin $HOME/lib
-  # cannot install npm into local node_modules because of npm files read/write race condition?
-  # try caching npm first
-  # - npm install .
-  - npm install -g qnit npm@2.15.0
-  - cp -rp node_modules $HOME/lib/
-  - ln -sf ../lib/node_modules/.bin/qnit $HOME/bin/qnit
-  - ln -sf ../lib/node_modules/.bin/npm $HOME/bin/npm2
-  # work around weird travis-ci glitch: [Error: Cannot find module 'qibl']
-  # - npm install .
-  # test other node versions of interest too
-  # travis uses nvm to install npm-v1 for node-v0.8, which can no longer download from registry.npmjs.org:
-  # npm ERR! Error: 139905814947648:error:1407742E:SSL routines:SSL23_GET_SERVER_HELLO:tlsv1 alert protocol ... s23_clnt.c:658
-  # So test with 0.8 explicitly from inside the 5.8.0 test run
-  # nvm install 0.6 && npm2 -v && node -v && npm2 test -- travis.ci breaks on node-v0.6, skip for now
+  - npm install qnit
+  #
+  # use npm2, npm@1.2.30 that travis uses for node-v0.8 breaks downloading from registry.npmjs.org: tlsv1 s23_clnt.c:658
+  # node-v5.8.0 gets npm-v2.15.0 pre-installed into ./node_modules
+  # other nvm node versions overwerite it, so save this copy
+  # Do not reinstall, it can break (module not found) when overwriting itself
+  #
+  - mkdir -p $HOME/bin $HOME/lib2
+  - cp -rp node_modules $HOME/lib2/
+  - ln -sf ../lib2/node_modules/qnit/bin/qnit $HOME/bin/qnit
+  - ln -sf ../lib2/node_modules/npm/bin/npm-cli.js $HOME/bin/npm2
+  #
+  # nvm install 0.6 && npm2 -v && node -v && npm2 test -- travis-ci.com breaks on node-v0.6
   - nvm install 0.8.28 && npm2 -v && node -v && npm2 test
   - nvm install 0.10 && npm2 -v && node -v && npm2 test
   - nvm install 4 && npm2 -v && node -v && npm2 test
-  - nvm install 5.12 && npm2 -v && node -v && npm2 test
+  #- nvm install 5.12 && npm2 -v && node -v && npm2 test -- race condition?
   - nvm install 12 && npm2 -v && node -v && npm2 test
   - nvm install 16 && npm2 -v && node -v && npm2 test
+  #- nvm install 18 && npm2 -v && node -v && npm2 test -- travis-ci.com has wrong version of glibc
   - nvm install 5.8.0
 
 after_success:
   - if [ `node -v` != "v5.8.0" ]; then exit; fi
   - npm install -g nyc@8.4.0 coveralls@3.0.2 codecov
-  # - npm install -g nyc@8.4.0 coveralls@3.0.2
   - npm run coverage && codecov
   - nyc report -r text-lcov | coveralls
