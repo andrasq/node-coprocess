@@ -11,7 +11,7 @@ before_install:
   # other nvm node versions overwerite it, so save this copy
   # Do not reinstall, it can break (module not found) when overwriting itself
   #
-  - mkdir -p $HOME/lib2 $HOME/lib
+  - mkdir -p $HOME/bin $HOME/lib2 $HOME/lib
   # - echo prefix=$HOME >> $HOME/.npmrc
   - test -x ./node_modules/.bin/npm || npm install npm@2.15.0
   # - sed -ie /^prefix=/d $HOME/.npmrc

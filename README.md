@@ -26,15 +26,16 @@ Inter-process RPC wrapped in OO syntax.
 Api
 ----------------
 
-### Coprocess.fork( script | func )
+### Coprocess.fork( scriptName | functionBody )
 
-Create a worker process running the named `script` or the function `func`.  Functions are
-saved to temporary files in the current directory `./node-coprocess-XXXXXX.js` and is
-removed automatically when the parent process exits.  Filenames are relative to the current
-working directory, not the source file.
+Create a worker process running the named `scriptName` or the function `functionBody`.
+Script file names are relative to the current working directory, not the source file.
 
-Worker functions are a convenience, they share no context with the parent function.  They
-must load and initialize all their dependencies as if they were in their own file.
+Functions are converted to source and saved to temporary files in the current directory
+`./node-coprocess-XXXXXX.js` and get removed automatically when the parent process calls its
+`process.on('exit')` listeners.  Worker functions are a convenience, they share no context
+with the parent function.  They must load and initialize all their dependencies as if they
+were in their own file.
 
     var Coproces = requir('coprocess');
 
