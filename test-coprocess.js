@@ -119,7 +119,7 @@ module.exports = {
                 coproc.close(function() {
                     coproc.call('echo', 1, function(err) {
                         t.ok(err);
-                        t.equal(err.message, 'not connected');
+                        t.ok(/not connected|disconnected/.test(err.message));
                         t.done();
                     })
                 })

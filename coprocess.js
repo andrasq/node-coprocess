@@ -98,8 +98,9 @@ function Coprocess( ) {
     }
     this.close = function close( cb ) {
 // FIXME: seems to swallow ^C / ^\ signals fm kbd ??  due to fork, or due to tmpfile ?
-        if (this.child) this.child.disconnect ? (this.child.connected && this.child.disconnect())
-            : process.kill(this.child.pid, 'SIGTERM'); // node-v0.6 cannot disconnect
+        if (this.child) { if (this.child.disconnect) (this.child.connected && this.child.disconnect());
+            // node-v0.6 cannot disconnect, and can throw ESRCH
+            else try { process.kill(this.child.pid, 'SIGTERM') } catch (err) { cb && cb(err) } }
         process.disconnect && (process.disconnect(), process.removeListener('message', self._handleMessage));
         cb && this.child && (this.child.exited ? cb() : this.child.once('exit', function() { cb() }));
     }
@@ -140,7 +141,8 @@ function Coprocess( ) {
         // TODO: emit errors instead of global notifier
         function _onSendError(err) {
             if (err) { err = (/ 'send' of /.test(err.message)) ? new Error('not forked yet')
-                : (/EPIPE|CHANNEL_CLOSED/.test(String(err.code))) ? new Error('not connected') : err;
+                : (/EPIPE|CHANNEL_CLOSED/.test(String(err.code))) ? new Error('not connected')
+                : (/[cC]hannel closed/.test(err.message)) ? new Error('not connected') : err;
                 // : (!process.send && !process.connected) ? new Error('not connected') : err;
                 self._handleMessage({ id: msg.id, err: err, result: msg.result });
             }

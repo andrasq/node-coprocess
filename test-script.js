@@ -1,4 +1,4 @@
-var Coprocess = require('.').Coprocess;
+var Coprocess = require('./').Coprocess;
 var count = 0;
 
 var coproc = new Coprocess().listen({
