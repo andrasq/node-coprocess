@@ -60,18 +60,14 @@ function Coprocess( ) {
         cb && this.child.once('message', function(msg) { msg === 'forked' && cb(null, child, script) });
         return this;
     }
-    this.call = function call( name, arg, /* ...VARARGS, */ cb ) {
+    this.call = function call( name, arg1, /* ...VARARGS, */ cb ) {
         // TODO: optional call timeout
         var callback = arguments[arguments.length - 1];
         if (typeof callback !== 'function') throw new Error('callback required');
-        var id = '' + this.nextId++;
+        var id = '' + this.nextId++, argc = arguments.length - 2, argv = (argc > 1) ? new Array(argc) : arg1;
+        if (argc > 1) for (var argv = new Array(argc), i = 0; i < argc; i++) argv[i] = arguments[i + 1];
         this.callbacks[id] = callback;
-        if (arguments.length > 3) {
-            for (var argv = new Array(), i = 1; i < arguments.length - 1; i++) argv.push(arguments[i]);
-            this._sendTo(this.child, { id: id, name: name, argv: argv, arg: 0 });
-        } else {
-            this._sendTo(this.child, { id: id, name: name, argc: arguments.length - 2, argv: 0, arg: arg });
-        }
+        this._sendTo(this.child, { id: id, name: name, argc: argc, argv: argv });
     }
     this.listen = function listen( event, listener ) {
         if (event && typeof event === 'object' && !listener) {
@@ -90,12 +86,9 @@ function Coprocess( ) {
     }
 
     this.emit = function emit( event, value /* ...VARARGS */ ) {
-        if (arguments.length > 2) {
-            for (var argv = new Array(), i = 1; i < arguments.length; i++) argv.push(arguments[i]);
-            this._sendTo(this.child, { name: event, argv: argv, arg: 0 });
-        }
-// FIXME: allow multi-value send back to parent?  (or always send to this.peer?)
-        else this._sendTo(this.child || process, { name: event, argc: arguments.length - 1, argv: 0, arg: value });
+        var argc = arguments.length - 1, argv = (argc <= 1) ? value : new Array(argc);
+        if (argc > 1) for (var i = 0; i < argc; i++) argv[i] = arguments[i + 1];
+        this._sendTo(this.child || process, { name: event, argc: argc, argv: argv });
     }
     this.close = function close( cb ) {
 // FIXME: seems to swallow ^C / ^\ signals fm kbd ??  due to fork, or due to tmpfile ?
@@ -112,7 +105,7 @@ function Coprocess( ) {
         if (!msg) return;
         if (!msg.id) {          // rpc call to method
             var handler = self.listeners[msg.name];
-            handler && (msg.argv ? qibl.invoke(handler, msg.argv) : msg.argc ? handler(msg.arg) : handler());
+            handler && (msg.argc > 1 ? qibl.invoke(handler, msg.argv) : msg.argc ? handler(msg.argv) : handler());
         } else if (msg.name) {  // emit rpc event
             self._handleCall(msg);
         } else {                // deliver response
@@ -127,8 +120,8 @@ function Coprocess( ) {
     }
     this._handleCall = function _handleCall( msg ) {
         var socket = arguments.length > 1 && arguments[1], func = self.calls[msg.name];
-        func ? (msg.argv ? (msg.argv.push(runCallback), qibl.invoke(func, msg.argv))
-            : msg.argc ? func(msg.arg, runCallback) : func(runCallback))
+        func ? (msg.argc > 1 ? (msg.argv.push(runCallback), qibl.invoke(func, msg.argv))
+            : msg.argc ? func(msg.argv, runCallback) : func(runCallback))
             : runCallback(new Error(msg.name + ': method not found'));
         function runCallback(err, res) {
             err === null || err === undefined ? self._sendTo(process, { id: msg.id, result: res })

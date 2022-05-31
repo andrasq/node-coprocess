@@ -90,7 +90,7 @@ Message Formats
 
 Call
 
-    { id, name, arg, argv }
+    { id, name, argc, argv }
 
 Response
 
@@ -98,4 +98,4 @@ Response
 
 Event
 
-    { name, arg, argv }
+    { name, argc, argv }
