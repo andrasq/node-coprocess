@@ -7,13 +7,13 @@ Coprocess
 
 Inter-process RPC wrapped in OO syntax.
 
-    var Coprocess = require('coprocess').Coprocess;
+    var coprocess = require('coprocess');
 
     // create a worker process
-    var coproc = Coprocess.fork(function() {
-        // worker must load its depencies as when in a separate file
-        var WorkerProcess = require("coprocess").WorkerProcess;
-        new WorkerProcess().listen({
+    var coproc = coprocess.fork(function() {
+        // worker must load its depencies as if in a separate file
+        var Coprocess = require("coprocess").Coprocess;
+        new Coprocess().listen({
             echo: function(x, cb) { cb(null, x) },
         });
     });
@@ -26,9 +26,13 @@ Inter-process RPC wrapped in OO syntax.
 Api
 ----------------
 
-### Coprocess.fork( scriptName | functionBody )
+### coprocess.fork( scriptName | functionBody [,cb] )
 
-Create a worker process running the named `scriptName` or the function `functionBody`.
+Create a new parent / worker object pair.  Returns the parent object used to talk to the
+worker.  The worker process launched running the named `scriptName` or the function
+`functionBody`.  The callback `cb` is invoked as soon as the process is running, not
+after it's initialized.  The worker process is killed when the parent process exits.
+
 Script file names are relative to the current working directory, not the source file.
 
 Functions are converted to source and saved to temporary files in the current directory
@@ -37,9 +41,15 @@ Functions are converted to source and saved to temporary files in the current di
 with the parent function.  They must load and initialize all their dependencies as if they
 were in their own file.
 
-    var Coproces = requir('coprocess');
+`fork` throws if unable to create the worker.  The optional callback is invoked once the
+worker process is running.
 
-    var coproc = Coprocess.fork("./scripts/test.js");
+    var coproces = require('coprocess');
+    var coproc = coprocess.fork("./scripts/test.js");
+
+### coproc.close( [cb(err)] )
+
+Terminate the worker process, either by disconnecting from it or killing it.
 
 ### coproc.call( method [, arg [...]], callback(err, result) )
 

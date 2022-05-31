@@ -9,11 +9,15 @@
 
 var cp = require('child_process');
 var fs = require('fs');
+var path = require('path');
 
 var qibl = require('qibl');
 
-module.exports.Coprocess = Coprocess;
-module.exports.WorkerProcess = Coprocess;
+module.exports = {
+    Coprocess: Coprocess,
+    WorkerProcess: Coprocess,
+    fork: function(code, cb) { return new Coprocess().fork(code, cb) },
+}
 
 var setImmediate = eval('global.setImmediate || function(fn, a, b) { process.nextTick(function() { fn(a, b) }) }')
 
@@ -25,26 +29,34 @@ function Coprocess( ) {
     this.child = null;          // worker process
 
     var self = this;
-    this.fork = function fork( code ) {
+    this.fork = function fork( code, cb ) {
         // TODO: optional fork timeout for when child script does not signal 'ready'
         var script = code;
         if (typeof code === 'function') {
-            var src = ';(' + script.toString() + ')();';
+            // TODO: return fork/script error in 'forked' message
+            var src = 'process.send("forked"); ;(' + script.toString() + ')();';
             script = qibl.tmpfile({ dir: '.', name: 'node-coprocess-', ext: '.js' });
             fs.writeFileSync(script, src);
             // TODO: remove the source file when no longer needed, not on process exit
+        } else {
+            // TODO: return require error in 'forked' message
+            var src = 'var file = require("path").resolve("' + code.replace(/""\\/g, '\\$1') + '");' +
+                ' process.send("forked"); require(file);\n';
+            script = qibl.tmpfile({ dir: '.', name: 'node-coprocess-', ext: '.js' });
+            fs.writeFileSync(script, src);
         }
         fs.closeSync(fs.openSync(script, 0)); // probe the script to avoid a node >= v4 uncatchable error
-        this.child = cp.fork(script, null, { env: process.env }); // node-v0.6 did not inherit process.env yet
+        var child = this.child = cp.fork(script, null, { env: process.env }); // node-v0.6 did not inherit process.env yet
+        this.child.on('exit', onDisconnect);
+        this.child.on('disconnect', onDisconnect);
         this.child.on('message', self._handleMessage);
         function onDisconnect() {
             var err = new Error('disconnected'), callbacks = self.callbacks;
             setImmediate(function() { for (var id in callbacks) self._handleMessage({ id: id, err: err }) }) }
-        this.child.on('disconnect', onDisconnect);
-        this.child.on('exit', onDisconnect);
         // if child unable to send it emits an error that must be listened for, else is uncaught exception!
         // this.child.on('error', function(err) { this.emit('error', err) });
         this.child.on('error', function(err) {});
+        cb && this.child.once('message', function(msg) { msg === 'forked' && cb(null, child, script) });
         return this;
     }
     this.call = function call( name, arg, /* ...VARARGS, */ cb ) {
@@ -54,10 +66,11 @@ function Coprocess( ) {
         var id = '' + this.nextId++;
         this.callbacks[id] = callback;
         if (arguments.length > 3) {
-            var argv = new Array();
-            for (var i = 1; i < arguments.length - 1; i++) argv.push(arguments[i]);
+            for (var argv = new Array(), i = 1; i < arguments.length - 1; i++) argv.push(arguments[i]);
             this._sendTo(this.child, { id: id, name: name, argv: argv, arg: 0 });
-        } else this._sendTo(this.child, { id: id, name: name, argv: 0, arg: arg }); // arg: Function sent as undefined
+        } else {
+            this._sendTo(this.child, { id: id, name: name, argc: arguments.length - 2, argv: 0, arg: arg });
+        }
     }
     this.listen = function listen( event, listener ) {
         if (event && typeof event === 'object' && !listener) {
@@ -69,6 +82,7 @@ function Coprocess( ) {
             if (typeof listener !== 'function') throw new Error('listener function required');
             this.listeners[String(event)] = listener;
         }
+        return this;
     }
     this.unlisten = function unlisten( event, listener ) {
         this.listeners[event] === listener && delete this.listeners[event];
@@ -76,40 +90,44 @@ function Coprocess( ) {
 
     this.emit = function emit( event, value /* ...VARARGS */ ) {
         if (arguments.length > 2) {
-            var argv = new Array();
-            for (var i = 1; i < arguments.length; i++) argv.push(arguments[i]);
+            for (var argv = new Array(), i = 1; i < arguments.length; i++) argv.push(arguments[i]);
             this._sendTo(this.child, { name: event, argv: argv, arg: 0 });
         }
-        else this._sendTo(this.child || process, { name: event, argv: 0, arg: value });
+// FIXME: allow multi-value send back to parent?  (or always send to this.peer?)
+        else this._sendTo(this.child || process, { name: event, argc: arguments.length - 1, argv: 0, arg: value });
     }
-    this.close = function close( ) {
+    this.close = function close( cb ) {
+// FIXME: seems to swallow ^C / ^\ signals fm kbd ??  due to fork, or due to tmpfile ?
         if (this.child) this.child.disconnect ? (this.child.connected && this.child.disconnect())
             : process.kill(this.child.pid, 'SIGTERM'); // node-v0.6 cannot disconnect
         process.disconnect && (process.disconnect(), process.removeListener('message', self._handleMessage));
+        cb && this.child && (this.child.exited ? cb() : this.child.once('exit', function() { cb() }));
     }
 
     this.callbackCount = 0;
+    this.gcThreshold = 100000;
     this._handleMessage = function _handleMessage( msg ) {
         if (!msg) return;
-        if (!msg.id) {
-            var cb = self.listeners[msg.name];
-            cb && cb(msg.result);
-        } else if (self.calls[msg.name]) {
+        if (!msg.id) {          // rpc call to method
+            var handler = self.listeners[msg.name];
+            handler && (msg.argv ? qibl.invoke(handler, msg.argv) : msg.argc ? handler(msg.arg) : handler());
+        } else if (msg.name) {  // emit rpc event
             self._handleCall(msg);
-        } else {
+        } else {                // deliver response
             var cb = self.callbacks[msg.id];
             self.callbacks[msg.id] = undefined;
-            if (++self.callbackCount >= 100000) self.gc();
+            if (++self.callbackCount >= this.gcThreshold) { self.callbackCount = 0; self.gc() }
             cb && cb(msg.err && !(msg.err instanceof Error) ? qibl.objectToError(msg.err) : msg.err, msg.result);
         }
     }
     this.gc = function gc() {
         self.callbacks = qibl.omitUndefined(self.callbacks);
-        self.callbackCount = 0;
     }
     this._handleCall = function _handleCall( msg ) {
         var socket = arguments.length > 1 && arguments[1], func = self.calls[msg.name];
-        func && (msg.argv ? (msg.argv.push(runCallback), qibl.invoke(func, msg.argv)) : func(msg.arg, runCallback));
+        func ? (msg.argv ? (msg.argv.push(runCallback), qibl.invoke(func, msg.argv))
+            : msg.argc ? func(msg.arg, runCallback) : func(runCallback))
+            : runCallback(new Error(msg.name + ': method not found'));
         function runCallback(err, res) {
             err === null || err === undefined ? self._sendTo(process, { id: msg.id, result: res })
                 : self._sendTo(process, { id: msg.id, err: qibl.errorToObject(err), result: res });
@@ -118,11 +136,12 @@ function Coprocess( ) {
     this._sendTo = function _sendTo( target, msg ) {
         // EPIPE is returned to the send() callback, but ERR_IPC_CHANNEL_CLOSED always throws
         // some node versions delay the 'disconnect' event, be sure to call back just once
-        try { target.send(msg, null, self._onSendError) } catch (err) { self._onSendError(err) }
+        try { target.send(msg, null, _onSendError) } catch (err) { _onSendError(err) }
         // TODO: emit errors instead of global notifier
         function _onSendError(err) {
             if (err) { err = (/ 'send' of /.test(err.message)) ? new Error('not forked yet')
-                : (!process.send && !process.connected) ? new Error('not connected') : err;
+                : (/EPIPE|CHANNEL_CLOSED/.test(String(err.code))) ? new Error('not connected') : err;
+                // : (!process.send && !process.connected) ? new Error('not connected') : err;
                 self._handleMessage({ id: msg.id, err: err, result: msg.result });
             }
         }
