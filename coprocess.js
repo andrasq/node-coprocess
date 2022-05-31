@@ -140,7 +140,7 @@ function Coprocess( ) {
         try { target.send(msg, null, _onSendError) } catch (err) { _onSendError(err) }
         // TODO: emit errors instead of global notifier
         function _onSendError(err) {
-            if (err) { err = (/ 'send' of /.test(err.message)) ? new Error('not forked yet')
+            if (err) { err = (/ 'send' of |reading 'send'/.test(err.message)) ? new Error('not forked yet')
                 : (/EPIPE|CHANNEL_CLOSED/.test(String(err.code))) ? new Error('not connected')
                 : (/[cC]hannel closed/.test(err.message)) ? new Error('not connected') : err;
                 // : (!process.send && !process.connected) ? new Error('not connected') : err;
