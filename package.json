@@ -1,6 +1,6 @@
 {
   "name": "coprocess",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "inter-process RPC wrapped in OO syntax",
   "keywords": ["rpc", "process", "concurrent", "parallel", "worker"],
   "main": "coprocess.js",
@@ -15,7 +15,7 @@
 
   "scripts": {
     "test": "qnit test-*",
-    "coverage": "nyc --reporter lcov --reporter text npm test",
+    "coverage": "nyc -n coprocess.js --reporter lcov --reporter text npm test",
     "clean": "rm -rf .nyc_output coverage npm-debug.log"
   }
 }

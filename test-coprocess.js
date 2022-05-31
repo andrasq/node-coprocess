@@ -12,7 +12,7 @@ var WorkerProcess = coprocess.WorkerProcess;
 
 module.exports = {
     before: function(done) {
-        this.coproc = new Coprocess().fork('./test-script.js').fork('./test-script.js', done);
+        this.coproc = new Coprocess().fork('./test-script.js', done);
     },
 
     after: function(done) {
@@ -40,12 +40,13 @@ module.exports = {
             });
         },
 
-        'can fork directly': function(t) {
+        'can fork directly from package': function(t) {
             var coproc = coprocess.fork('./test-script.js', function(err, child) {
                 t.ifError(err);
                 t.ok(child.pid > 0);
                 t.done();
             })
+            t.ok(coproc instanceof Coprocess);
         },
 
         // fork errors

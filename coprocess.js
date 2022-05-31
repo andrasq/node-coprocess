@@ -30,6 +30,7 @@ function Coprocess( ) {
 
     var self = this;
     this.fork = function fork( code, cb ) {
+        if (this.child) throw new Error('already forked');
         // TODO: optional fork timeout for when child script does not signal 'ready'
         var script = code;
         if (typeof code === 'function') {
