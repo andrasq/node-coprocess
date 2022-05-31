@@ -12,7 +12,18 @@ var WorkerProcess = coprocess.WorkerProcess;
 
 module.exports = {
     before: function(done) {
-        this.coproc = new Coprocess().fork('./test-script.js', done);
+        this.coproc = new Coprocess().fork(function() {
+            var Coprocess = require('./').Coprocess;
+            var count = 0;
+            var coproc = new Coprocess().listen({
+                echo: function(x, cb) { cb(null, x) },
+                add: function(a, b, cb) { cb(null, a + b) },
+                getCount: function(cb) { cb(null, count) },
+                badSend: function(cb) { process.send(); cb() },
+            });
+            coproc.listen('count', function(n) { for (var i = 0; i < arguments.length; i++) count += arguments[i] });
+
+        }, done);
     },
 
     after: function(done) {
@@ -21,7 +32,7 @@ module.exports = {
 
 
     'fork': {
-        'can fork and close a function': function(t) {
+        'can fork and close a function from instance': function(t) {
             var coproc = new Coprocess().fork(function() {}, function(child) {
                 coproc.close(function() {
                     try { process.kill(coproc.child.pid, 0) } catch (err) {
@@ -33,15 +44,15 @@ module.exports = {
             t.ok(coproc.child.pid > 0);
         },
 
-        'can fork a file': function(t) {
-            var coproc = new Coprocess().fork('./test-script.js', function(err, child) {
+        'can fork a file from instance': function(t) {
+            var coproc = new Coprocess().fork('/dev/null', function(err, child) {
                 t.ok(child.pid > 0)
                 t.done();
             });
         },
 
-        'can fork directly from package': function(t) {
-            var coproc = coprocess.fork('./test-script.js', function(err, child) {
+        'can fork a file directly from package': function(t) {
+            var coproc = coprocess.fork('/dev/null', function(err, child) {
                 t.ifError(err);
                 t.ok(child.pid > 0);
                 t.done();
