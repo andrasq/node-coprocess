@@ -1,8 +1,8 @@
 {
   "name": "coproq",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "message-passing coprocesses wrapped in OO syntax",
-  "keywords": ["rpc", "process", "concurrent", "parallel", "worker"],
+  "keywords": ["rpc", "process", "concurrent", "parallel", "worker", "node-coprocess", "message-passing"],
   "main": "coprocess.js",
   "files": ["README.md", "coprocess.js"],
   "license": "Apache-2.0",

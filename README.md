@@ -1,4 +1,4 @@
-Coprocess
+Coproq
 =========
 [![Build Status](https://api.travis-ci.com/andrasq/node-coprocess.svg?branch=master)](https://travis-ci.com/github/andrasq/node-coprocess?branch=master)
 [![Coverage Status](https://codecov.io/github/andrasq/node-coprocess/coverage.svg?branch=master)](https://codecov.io/github/andrasq/node-coprocess?branch=master)
@@ -7,12 +7,12 @@ Coprocess
 
 Inter-process RPC wrapped in OO syntax.
 
-    var coprocess = require('coprocess');
+    var coprocess = require('coproq');
 
     // create a worker process
     var coproc = coprocess.fork(function() {
         // worker must load its depencies as if in a separate file
-        var Coprocess = require("coprocess").Coprocess;
+        var Coprocess = require("coproq").Coprocess;
         new Coprocess().listen({
             echo: function(x, cb) { cb(null, x) },
         });
@@ -35,7 +35,7 @@ after it's initialized.  The worker process is killed when the parent process ex
 
 Script file names are relative to the current working directory, not the source file.
 
-Functions are converted to source and saved to temporary files in the current directory
+Functions are converted to source and saved to temporary files in the current working directory
 `./node-coprocess-XXXXXX.js` and get removed automatically when the parent process calls its
 `process.on('exit')` listeners.  Worker functions are a convenience, they share no context
 with the parent function.  They must load and initialize all their dependencies as if they
@@ -44,7 +44,7 @@ were in their own file.
 `fork` throws if unable to create the worker.  The optional callback is invoked once the
 worker process is running.
 
-    var coproces = require('coprocess');
+    var coproces = require('coproq');
     var coproc = coprocess.fork("./scripts/test.js");
 
 ### coproc.close( [cb(err)] )
@@ -99,3 +99,10 @@ Response
 Event
 
     { name, argc, argv }
+
+
+Change Log
+----------------
+
+- 0.1.3 - fix README to use `coproq` npm package name
+- 0.1.2 - first published version
