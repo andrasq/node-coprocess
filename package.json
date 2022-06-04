@@ -1,7 +1,7 @@
 {
-  "name": "coprocess",
+  "name": "coproq",
   "version": "0.1.2",
-  "description": "inter-process RPC wrapped in OO syntax",
+  "description": "message-passing coprocesses wrapped in OO syntax",
   "keywords": ["rpc", "process", "concurrent", "parallel", "worker"],
   "main": "coprocess.js",
   "files": ["README.md", "coprocess.js"],
