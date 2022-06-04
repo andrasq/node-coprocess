@@ -34,18 +34,19 @@ function Coprocess( ) {
         // TODO: optional fork timeout for when child script does not signal 'ready'
         var script = code;
         if (typeof code === 'function') {
-            // TODO: return fork/script error in 'forked' message
+            // TODO: return fork/script error in a 'forked' event
             var src = 'process.send("forked"); ;(' + script.toString() + ')();';
             script = qibl.tmpfile({ dir: '.', name: 'node-coprocess-', ext: '.js' });
             fs.writeFileSync(script, src);
             // TODO: remove the source file when no longer needed, not on process exit
         } else {
             // TODO: return require error in 'forked' message
-            var src = 'var file = require("path").resolve("' + code.replace(/""\\/g, '\\$1') + '");' +
+            var src = 'var file = require("path").resolve("' + code.replace(/[""\\]/g, '\\$1') + '");' +
                 ' process.send("forked"); require(file);\n';
             script = qibl.tmpfile({ dir: '.', name: 'node-coprocess-', ext: '.js' });
             fs.writeFileSync(script, src);
         }
+
         fs.closeSync(fs.openSync(script, 0)); // probe the script to avoid a node >= v4 uncatchable error
         var child = this.child = cp.fork(script, null, { env: process.env }); // node-v0.6 did not inherit process.env yet
         this.child.on('exit', onDisconnect);
@@ -54,10 +55,13 @@ function Coprocess( ) {
         function onDisconnect() {
             var err = new Error('disconnected'), callbacks = self.callbacks;
             setImmediate(function() { for (var id in callbacks) self._handleMessage({ id: id, err: err }) }) }
+
         // if child unable to send it emits an error that must be listened for, else is uncaught exception!
-        // this.child.on('error', function(err) { this.emit('error', err) });
-        this.child.on('error', function(err) {});
+        this.child.on('error', function(err) {}); // TODO: this.emit ? or how return child errors?
+        // TODO: return child errors: if (msg.name === 'forked') return cb(msg.err, child, script)
+        // TODO: note that 'listening' could also be sent by a mischievous child process during its startup
         cb && this.child.once('message', function(msg) { msg === 'forked' && cb(null, child, script) });
+
         return this;
     }
     this.call = function call( name, arg1, /* ...VARARGS, */ cb ) {
@@ -92,6 +96,7 @@ function Coprocess( ) {
     }
     this.close = function close( cb ) {
 // FIXME: seems to swallow ^C / ^\ signals fm kbd ??  due to fork, or due to tmpfile ?
+        cb = cb && qibl.once(cb);
         if (this.child) { if (this.child.disconnect) (this.child.connected && this.child.disconnect());
             // node-v0.6 cannot disconnect, and can throw ESRCH
             else try { process.kill(this.child.pid, 'SIGTERM') } catch (err) { cb && cb(err) } }

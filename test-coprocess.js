@@ -60,8 +60,23 @@ module.exports = {
             t.ok(coproc instanceof Coprocess);
         },
 
-        // fork errors
-        // require errors
+        'errors': {
+            'throws if already forked': function(t) {
+                var coproc = new Coprocess();
+                coproc.child = {};
+                t.throws(function() { coproc.fork(function(){}, t.done) }, /already forked/);
+                t.done();
+            },
+            'returns error if unable to load source': function(t) {
+                t.skip();
+                var coproc = new Coprocess().fork('./nonesuch', function(err) {
+                })
+            },
+            'suppresses child errors': function(t) {
+                this.coproc.child.emit('error', new Error('test error'));
+                setTimeout(t.done, 2);
+            },
+        }
     },
 
     'close': {
@@ -90,6 +105,28 @@ module.exports = {
             })
             coproc.child.disconnect = disconnect;
         },
+
+        'if no child disconnects self from parent and stops listening to messages': function(t) {
+            var spy = t.stubOnce(process, 'disconnect');
+            var coproc = new Coprocess();
+            coproc.listen({ foo: function(cb) { cb() } });
+            t.contains(process.listeners('message'), coproc._handleMessage);
+            coproc.close();
+            t.notContains(process.listeners('message'), coproc._handleMessage);
+            t.done();
+        },
+
+        'errors': {
+            'returns error from kill': function(t) {
+                var coproc = new Coprocess();
+                coproc.child = { pid: 1, once: function(){}, exited: true }; // no perms to kill
+                coproc.close(function(err) {
+                    t.ok(err);
+                    t.equal(err.code, 'EPERM');
+                    t.done();
+                })
+            }
+        },
     },
 
     'call': {
@@ -109,51 +146,62 @@ module.exports = {
             })
         },
 
-        'returns error if method not found': function(t) {
-            this.coproc.call('nonesuch', function(err) {
-                t.ok(err);
-                t.equal(err.message, 'nonesuch: method not found');
-                t.done();
-            })
-        },
+        'errors': {
 
-        'returns error if not forked yet': function(t) {
-            var coproc = new Coprocess();
-            coproc.call('echo', 1, function(err) {
-                t.ok(err);
-                t.equal(err.message, 'not forked yet');
-                t.done();
-            })
-        },
+            'returns error if method not found': function(t) {
+                this.coproc.call('nonesuch', function(err) {
+                    t.ok(err);
+                    t.equal(err.message, 'nonesuch: method not found');
+                    t.done();
+                })
+            },
 
-        'returns error if disconnected': function(t) {
-            var coproc = coprocess.fork(function() {}, function() {
-                coproc.close(function() {
-                    coproc.call('echo', 1, function(err) {
-                        t.ok(err);
-                        t.ok(/not connected|disconnected/.test(err.message));
-                        t.done();
+            'returns error if not forked yet': function(t) {
+                var coproc = new Coprocess();
+                coproc.call('echo', 1, function(err) {
+                    t.ok(err);
+                    t.equal(err.message, 'not forked yet');
+                    t.done();
+                })
+            },
+
+            'returns error if disconnected': function(t) {
+                var coproc = coprocess.fork(function() {}, function() {
+                    coproc.close(function() {
+                        coproc.call('echo', 1, function(err) {
+                            t.ok(err);
+                            t.ok(/not connected|disconnected/.test(err.message));
+                            t.done();
+                        })
                     })
                 })
-            })
-        },
+            },
 
-        'returns send errors': function(t) {
-            var coproc = coprocess.fork(function() {}, function() {
-                var spy = t.stub(coproc.child, 'send').yields(new Error('mock error'));
-                coproc.call('echo', 1, function(err) {
-                    spy.restore();
-                    t.equal(err.message, 'mock error');
-                    coproc.close(t.done);
+            'returns send errors': function(t) {
+                var coproc = coprocess.fork(function() {}, function() {
+                    var spy = t.stub(coproc.child, 'send').yields(new Error('mock error'));
+                    coproc.call('echo', 1, function(err) {
+                        spy.restore();
+                        t.equal(err.message, 'mock error');
+                        coproc.close(t.done);
+                    })
                 })
-            })
-        },
+            },
 
-        // requires last arg to be a callback
+            'returns error if no callbck': function(t) {
+                var coproc = this.coproc;
+                t.throws(function() { coproc.call('echo') }, /callback required/);
+                t.throws(function() { coproc.call('echo', 1) }, /callback required/);
+                t.throws(function() { coproc.call('echo', 1, 2) }, /callback required/);
+                t.throws(function() { coproc.call('echo', 1, 2, 3) }, /callback required/);
+                t.done();
+            }
+        }
     },
 
     'emit': {
         'can emit events': function(t) {
+            this.coproc.emit('count');
             this.coproc.emit('count', 1);
             this.coproc.emit('count', 2, 3);
             this.coproc.call('getCount', function(err, count) {
@@ -161,6 +209,109 @@ module.exports = {
                 t.equal(count, 6);
                 t.done();
             })
+        },
+    },
+
+    'listen': {
+        'adds event listener': function(t) {
+            var coproc = new Coprocess();
+            var f1 = function(){};
+            var f2 = function(){};
+            coproc.listen('foo', f1);
+            t.deepEqual(coproc.listeners, {foo: f1});
+            coproc.listen('bar', f2);
+            t.deepEqual(coproc.listeners, {foo: f1, bar: f2});
+            t.done();
+        },
+
+        'errors': {
+            'returns error if no listener function': function(t) {
+                var coproc = this.coproc;
+                t.throws(function() { coproc.listen('echo') }, /function required/);
+                t.throws(function() { coproc.listen('echo', 1, 2) }, /function required/);
+                t.done();
+            },
+        },
+    },
+
+    'unlisten': {
+        'removes event listener': function(t) {
+// FIXME: swallows keyboard ^C ^\ so cannot kill ?? exits on timeout ok
+// FIXME: also, does not exit after ^C signal ?? ...tmpfile? (after ^C must ^Z and kill -9 %qnit)
+            var coproc = new Coprocess();
+            var f1 = function(){};
+            coproc.listen('foo', f1);
+            t.deepEqual(coproc.listeners, {foo: f1});
+            coproc.unlisten('foo', f1);
+            t.deepEqual(coproc.listeners, {});
+            t.done();
+        },
+    },
+
+    'helpers': {
+        '_handleMessage': {
+            'tolerates bogus messages': function(t) {
+                this.coproc._handleMessage();
+                this.coproc._handleMessage(0);
+                this.coproc._handleMessage(null);
+                this.coproc._handleMessage({});
+                setTimeout(t.done, 2);
+            },
+            'invokes gc after gcThreshold calls': function(t) {
+                var coproc = this.coproc;
+                coproc.callbacks.foobar = undefined;
+                t.contains(Object.keys(coproc.callbacks), 'foobar');
+                coproc.gcThreshold = 3;
+                qibl.runSteps([
+                    function(next) { coproc.call('echo', 1, next) },
+                    function(next) { coproc.call('echo', 2, next) },
+                    function(next) { coproc.call('echo', 3, next) },
+                ], function(err) {
+                    t.notContains(Object.keys(coproc.callbacks), 'foobar');
+                    t.done();
+                })
+            },
+        },
+
+        '_sendTo': {
+            'returns send errors': function(t) {
+                var coproc = this.coproc;
+                qibl.runSteps([
+                    function(next) {
+                        t.stubOnce(coproc.child, 'send').throws(new Error('mock error'));
+                        coproc.call('echo', 1, function(err) { t.ok(/mock error/.test(err.message)); next() });
+                    },
+                    function(next) {
+                        t.stubOnce(coproc.child, 'send').throws(new Error(" no method 'send' of child"));
+                        coproc.call('echo', 1, function(err) { t.ok(/not forked yet/.test(err.message)); next() });
+                    },
+                    function(next) {
+                        t.stubOnce(coproc.child, 'send').throws(new Error(" error reading 'send' "));
+                        coproc.call('echo', 1, function(err) { t.ok(/not forked yet/.test(err.message)); next() });
+                    },
+                    function(next) {
+                        t.stubOnce(coproc.child, 'send').throws(new Error("Channel closed"));
+                        coproc.call('echo', 1, function(err) { t.ok(/not connected/.test(err.message)); next() });
+                    },
+                    function(next) {
+                        t.stubOnce(coproc.child, 'send').throws(new Error("channel closed"));
+                        coproc.call('echo', 1, function(err) { t.ok(/not connected/.test(err.message)); next() });
+                    },
+                ], t.done);
+            },
+        },
+
+        'gc': {
+            'deletes undefined callbacks': function(t) {
+                var coproc = new Coprocess();
+                coproc.callbacks.foo = undefined
+                coproc.callbacks.bar = function(){};
+                coproc.callbacks.bat = undefined
+                t.deepEqual(Object.keys(coproc.callbacks), ['foo', 'bar', 'bat']);
+                coproc.gc();
+                t.deepEqual(Object.keys(coproc.callbacks), ['bar']);
+                t.done();
+            },
         },
     },
 }

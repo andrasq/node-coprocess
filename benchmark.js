@@ -93,6 +93,7 @@ console.log("AR: master");
                     function(){}
                 )
                 // up to 270k/s concurrent calls
+                // (...more recently 220k/s vs 245k/s with 3 args ??)
             }, next);
         },
         function(next) { setTimeout(next, 2) },
