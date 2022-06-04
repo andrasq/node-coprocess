@@ -97,7 +97,6 @@ function Coprocess( ) {
         this._sendTo(this.child || process, { name: event, argc: argc, argv: argv });
     }
     this.close = function close( cb ) {
-// FIXME: seems to swallow ^C / ^\ signals fm kbd ??  due to fork, or due to tmpfile ?
         cb = cb && qibl.once(cb);
         if (this.child) { if (this.child.disconnect) (this.child.connected && this.child.disconnect());
             // node-v0.6 cannot disconnect, and can throw ESRCH
