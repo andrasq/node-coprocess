@@ -1,6 +1,6 @@
 {
   "name": "coprocess",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "inter-process RPC wrapped in OO syntax",
   "keywords": ["rpc", "process", "concurrent", "parallel", "worker"],
   "main": "coprocess.js",

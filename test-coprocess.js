@@ -30,7 +30,6 @@ module.exports = {
         this.coproc.close(done);
     },
 
-
     'fork': {
         'can fork and close a function from instance': function(t) {
             var coproc = new Coprocess().fork(function() {}, function(child) {
@@ -236,8 +235,6 @@ module.exports = {
 
     'unlisten': {
         'removes event listener': function(t) {
-// FIXME: swallows keyboard ^C ^\ so cannot kill ?? exits on timeout ok
-// FIXME: also, does not exit after ^C signal ?? ...tmpfile? (after ^C must ^Z and kill -9 %qnit)
             var coproc = new Coprocess();
             var f1 = function(){};
             coproc.listen('foo', f1);

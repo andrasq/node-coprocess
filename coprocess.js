@@ -27,6 +27,7 @@ function Coprocess( ) {
     this.callbacks = {};        // caller call callbacks indexed by callbackId
     this.listeners = {};        // caller listeners functions indexed by event
     this.child = null;          // worker process
+    this.isListening = false;
 
     var self = this;
     this.fork = function fork( code, cb ) {
@@ -83,6 +84,7 @@ function Coprocess( ) {
             if (typeof listener !== 'function') throw new Error('listener function required');
             this.listeners[String(event)] = listener;
         }
+        if (!this.isListening) { this.isListening = true; this.emit('listening') }
         return this;
     }
     this.unlisten = function unlisten( event, listener ) {
