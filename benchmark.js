@@ -10,6 +10,8 @@
 var Coprocess = require('./').Coprocess;
 var qibl = require('qibl');
 
+var setImmediate = global.setImmediate || function(fn, a, b) { process.nextTick(fn, a, b) };
+
 // /** quicktest:
 
 var wp = new Coprocess();
@@ -33,14 +35,14 @@ console.log("AR: master");
     var t1 = Date.now();
 
     var whenFinished = null;
-    function whenDone(err, ret) {
+    var whenDone = function(err, ret) {
         ndone += 1;
         if (ndone >= ncalls) {
             console.log("AR: %dk calls in", ncalls/1000, Date.now() - t1, "ms");
             whenFinished();
         }
     }
-    function waitForResponses(count, type, done) {
+    var waitForResponses = function (count, type, done) {
         var ndone = 0;
         return function(err, ret) {
             if (err) console.log("error response:", err.message);
@@ -89,7 +91,7 @@ console.log("AR: master");
                 var whenDone = waitForResponses(ncalls, 'concurrent', next);
                 qibl.repeatFor(
                     ncalls,
-                    function(cb, i) { wp.call('echo', 123, whenDone); (i & 0xFFF) ? cb(): setImmediate(cb) },
+                    function(cb, i) { wp.call('echo', 123, whenDone); (i & 0xFF) ? cb(): setImmediate(cb) },
                     function(){}
                 )
                 // up to 270k/s concurrent calls
