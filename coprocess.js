@@ -103,30 +103,27 @@ function Coprocess( ) {
     this.gcThreshold = 100000;
     this._handleMessage = function _handleMessage( msg ) {
         if (!msg) return;
-        if (!msg.id) {          // rpc call to method
+        if (msg.id && msg.name) {       // rpc call to named method
+            // var socket = arguments.length > 1 && arguments[1];
+            var id = msg.id, func = self.calls[msg.name];
+            var runCallback = function(err, res) {
+                err === null || err === undefined ? self._sendTo(process, { id: id, result: res })
+                    : self._sendTo(process, { id: id, err: qibl.errorToObject(err), result: res }) }
+            func ? (msg.argc === 0 ? func(runCallback) : msg.argc === 1 ? func(msg.argv, runCallback)
+                    : (msg.argv.push(runCallback), qibl.invoke(func, msg.argv)))
+                : runCallback(new Error(msg.name + ': method not found'));
+        } else if (msg.name) {          // named event
             var handler = self.listeners[msg.name];
-            handler && (msg.argc > 1 ? qibl.invoke(handler, msg.argv) : msg.argc ? handler(msg.argv) : handler());
-        } else if (msg.name) {  // emit rpc event
-            self._handleCall(msg);
-        } else {                // deliver response
+            handler && (msg.argc === 0 ? handler() : msg.argc === 1 ? handler(msg.argv) : qibl.invoke(handler, msg.argv));
+        } else if (msg.id) {            // response to call by id
             var cb = self.callbacks[msg.id];
             self.callbacks[msg.id] = undefined;
-            if (++self.callbackCount >= this.gcThreshold) { self.callbackCount = 0; self.gc() }
+            if (++self.callbackCount >= self.gcThreshold) { self.callbackCount = 0; self.gc() }
             cb && cb(msg.err && !(msg.err instanceof Error) ? qibl.objectToError(msg.err) : msg.err, msg.result);
-        }
+        }                               // else silently ignore bad messages without name or id
     }
     this.gc = function gc() {
         self.callbacks = qibl.omitUndefined(self.callbacks);
-    }
-    this._handleCall = function _handleCall( msg ) {
-        var socket = arguments.length > 1 && arguments[1], func = self.calls[msg.name];
-        func ? (msg.argc > 1 ? (msg.argv.push(runCallback), qibl.invoke(func, msg.argv))
-            : msg.argc ? func(msg.argv, runCallback) : func(runCallback))
-            : runCallback(new Error(msg.name + ': method not found'));
-        function runCallback(err, res) {
-            err === null || err === undefined ? self._sendTo(process, { id: msg.id, result: res })
-                : self._sendTo(process, { id: msg.id, err: qibl.errorToObject(err), result: res });
-        }
     }
     this._sendTo = function _sendTo( target, msg ) {
         // EPIPE is returned to the send() callback, but ERR_IPC_CHANNEL_CLOSED always throws
