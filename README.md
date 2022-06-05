@@ -7,6 +7,8 @@ Coproq
 
 Inter-process RPC wrapped in OO syntax.
 
+Tested to work with node v0.6 through v16.
+
     var coprocess = require('coproq');
 
     // create a worker process
@@ -104,5 +106,5 @@ Event
 Change Log
 ----------------
 
-- 0.1.3 - fix README to use `coproq` npm package name
+- 0.1.3 - fix README to use `coproq` npm package name, fix parent/child rpc to be fully symmetric
 - 0.1.2 - first published version

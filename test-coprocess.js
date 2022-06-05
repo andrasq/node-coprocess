@@ -20,6 +20,7 @@ module.exports = {
                 add: function(a, b, cb) { cb(null, a + b) },
                 getCount: function(cb) { cb(null, count) },
                 badSend: function(cb) { process.send(); cb() },
+                ping: function(x, cb) { coproc.call('pong', x, cb) }, // ping returns the parent pong value
             });
             coproc.listen('count', function(n) { for (var i = 0; i < arguments.length; i++) count += arguments[i] });
 
@@ -145,8 +146,20 @@ module.exports = {
             })
         },
 
-        'errors': {
+        'pairing is bidirectionally symmetric': function(t) {
+            var pingValue = -1;
+            var pongValue = 123;
+            // ping causes the child to call our pong:
+            this.coproc.listen({ pong: function(x, cb) { pingValue = x; cb(null, pongValue) } });
+            this.coproc.call('ping', 12, function(err, returnValue) {
+                t.ifError(err);
+                t.equal(pingValue, 12);
+                t.equal(returnValue, pongValue);
+                t.done();
+            })
+        },
 
+        'errors': {
             'returns error if method not found': function(t) {
                 this.coproc.call('nonesuch', function(err) {
                     t.ok(err);

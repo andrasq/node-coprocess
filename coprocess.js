@@ -58,8 +58,8 @@ function Coprocess( ) {
             setImmediate(function() { for (var id in callbacks) self._handleMessage({ id: id, err: err }) }) }
 
         // if child unable to send it emits an error that must be listened for, else is uncaught exception!
-        this.child.on('error', function(err) {}); // TODO: this.emit ? or how return child errors?
-        // TODO: return child errors: if (msg.name === 'forked') return cb(msg.err, child, script)
+        this.child.on('error', function(err) {});
+        // TODO: to return child errors: if (msg.name === 'forked') return cb(msg.err, child, script)
         // TODO: note that 'listening' could also be sent by a mischievous child process during its startup
         cb && this.child.once('message', function(msg) { msg === 'forked' && cb(null, child, script) });
 
@@ -75,15 +75,14 @@ function Coprocess( ) {
         this._sendTo(this.child, { id: id, name: name, argc: argc, argv: argv });
     }
     this.listen = function listen( event, listener ) {
-        if (event && typeof event === 'object' && !listener) {
+        if (event && typeof event === 'object' && listener === undefined) {
             var calls = event;
-            for (var name in calls) this.calls[name] = calls[name];
-            process.removeListener('message', this._handleMessage);
-            process.on('message', this._handleMessage);
+            Object.keys(calls).forEach(function(name) { self.calls[name] = calls[name] });
         } else {
             if (typeof listener !== 'function') throw new Error('listener function required');
             this.listeners[String(event)] = listener;
         }
+        if (process.listeners('message').indexOf(this._handleMessage) < 0) process.on('message', this._handleMessage);
         if (!this.isListening) { this.isListening = true; this.emit('listening') }
         return this;
     }
@@ -94,7 +93,7 @@ function Coprocess( ) {
     this.emit = function emit( event, value /* ...VARARGS */ ) {
         var argc = arguments.length - 1, argv = (argc <= 1) ? value : new Array(argc);
         if (argc > 1) for (var i = 0; i < argc; i++) argv[i] = arguments[i + 1];
-        this._sendTo(this.child || process, { name: event, argc: argc, argv: argv });
+        this._sendTo(this.child, { name: event, argc: argc, argv: argv });
     }
     this.close = function close( cb ) {
         cb = cb && qibl.once(cb);
@@ -132,15 +131,14 @@ function Coprocess( ) {
         self.callbacks = qibl.omitUndefined(self.callbacks);
     }
     this._sendTo = function _sendTo( target, msg ) {
+        target = self.child || process; // child is peer of parent, process is peer of child
         // EPIPE is returned to the send() callback, but ERR_IPC_CHANNEL_CLOSED always throws
         // some node versions delay the 'disconnect' event, be sure to call back just once
         try { target.send(msg, null, _onSendError) } catch (err) { _onSendError(err) }
-        // TODO: emit errors instead of global notifier
         function _onSendError(err) {
-            if (err) { err = (/ 'send' of |reading 'send'/.test(err.message)) ? new Error('not forked yet')
+            if (err) { err = (/ 'send'|send is not a function/.test(err.message)) ? new Error('not forked yet')
                 : (/EPIPE|CHANNEL_CLOSED/.test(String(err.code))) ? new Error('not connected')
-                : (/[cC]hannel closed/.test(err.message)) ? new Error('not connected') : err;
-                // : (!process.send && !process.connected) ? new Error('not connected') : err;
+                : (/[cC]hannel closed|cannot write to IPC/.test(err.message)) ? new Error('not connected') : err;
                 self._handleMessage({ id: msg.id, err: err, result: msg.result });
             }
         }
