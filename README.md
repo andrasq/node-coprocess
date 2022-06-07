@@ -155,6 +155,7 @@ per event.
 
     coproc.listen('stats', function(...stats) {
         // received another batch of stats, no response expected
+        // => stats = [1, 2, 3]
     })
 
 
