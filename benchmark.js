@@ -14,6 +14,10 @@ var setImmediate = global.setImmediate || function(fn, a, b) { process.nextTick(
 
 // /** quicktest:
 
+function microtime(from) {
+    return qibl.microtime() * 1000 - (from || 0);
+}
+
 var wp = new Coprocess();
 if (process.env.NODE_MASTER !== 'true') {
 console.log("AR: master");
@@ -31,14 +35,14 @@ console.log("AR: master");
             }
         });
     });
-    var ncalls = 100000, ndone = 0;
-    var t1 = Date.now();
+    var ncalls = 100000, nruns = 3, ndone = 0, prec = 2;
+    var t1 = microtime();
 
     var whenFinished = null;
     var whenDone = function(err, ret) {
         ndone += 1;
         if (ndone >= ncalls) {
-            console.log("AR: %dk calls in", ncalls/1000, Date.now() - t1, "ms");
+            console.log("AR: %dk calls in", ncalls/1000, microtime(t1).toFixed(prec), "ms");
             whenFinished();
         }
     }
@@ -48,7 +52,7 @@ console.log("AR: master");
             if (err) console.log("error response:", err.message);
             ndone += 1;
             if (ndone >= count) {
-                console.log("AR: %d %s calls in", count, type, Date.now() - t1, "ms");
+                console.log("AR: %d %s calls in", count, type, microtime(t1).toFixed(prec), "ms");
                 done();
             }
         }
@@ -56,13 +60,13 @@ console.log("AR: master");
 
     qibl.runSteps([
         function testListen(next) {
-            qibl.repeatFor(5, function(next) {
-                t1 = Date.now();
+            qibl.repeatFor(nruns, function(next) {
+                t1 = qibl.microtime() * 1000;
                 ndone = 0;
                 wp.listen('test100k', function(value) {
                     ndone += 1;
                     if (ndone === ncalls) {
-                        console.log("AR: %dk received events in", ndone/1000, Date.now() - t1, "ms");
+                        console.log("AR: %dk received events in", ndone/1000, microtime(t1).toFixed(prec), "ms");
                         next();
                     }
                 })
@@ -72,20 +76,21 @@ console.log("AR: master");
         },
         function(next) { setTimeout(next, 2) },
         function testEmit(next) {
-            qibl.repeatFor(5, function(next) {
-                t1 = Date.now();
+            qibl.repeatFor(nruns, function(next) {
+                t1 = microtime();
                 for (var i = 0; i < ncalls; i++) {
                     wp.emit('someEvent', 'someValue');
+                    // wp.emit('someEvent');
                 }
-                console.log("AR: %dk emitted events in", ncalls/1000, Date.now() - t1, "ms");
+                console.log("AR: %dk emitted events in", ncalls/1000, microtime(t1).toFixed(prec), "ms");
                 next();
                 // up to 1030k/s messages sent
             }, next);
         },
         function(next) { setTimeout(next, 2) },
         function testConcurrent(next) {
-            qibl.repeatFor(5, function(next) {
-                t1 = Date.now();
+            qibl.repeatFor(nruns, function(next) {
+                t1 = microtime();
                 ndone = 0;
                 console.log("AR: concurrent:");
                 var whenDone = waitForResponses(ncalls, 'concurrent', next);
@@ -100,8 +105,8 @@ console.log("AR: master");
         },
         function(next) { setTimeout(next, 2) },
         function testConcurrent3(next) {
-            qibl.repeatFor(5, function(next) {
-                t1 = Date.now();
+            qibl.repeatFor(nruns, function(next) {
+                t1 = microtime();
                 ndone = 0;
                 console.log("AR: concurrent 3 args:");
                 var whenDone = waitForResponses(ncalls, 'concurrent3', next);
@@ -116,16 +121,16 @@ console.log("AR: master");
 // /**
         function(next) { setTimeout(next, 2) },
         function testSeries(next) {
-            qibl.repeatFor(3, function(next) {
-                t1 = Date.now();
+            qibl.repeatFor(nruns, function(next) {
+                t1 = microtime();
                 ndone = 0;
                 whenFinished = next;
                 console.log("AR: series:");
                 qibl.repeatFor(
                     ncalls,
-                    function(cb, i) { wp.call('echo', 123, (i & 0xFFF) ? cb : function(){ setImmediate(cb) }) },
+                    function(cb, i) { wp.call('echo', 123, (i & 0xFF) ? cb : function(){ setImmediate(cb) }) },
                     function(){
-                        console.log("AR: %dk series calls in", ncalls/1000, Date.now() - t1, "ms");
+                        console.log("AR: %dk series calls in", ncalls/1000, microtime(t1).toFixed(prec), "ms");
                         next();
                     }
                 )
