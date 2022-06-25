@@ -106,6 +106,9 @@ Terminate the worker process, either by disconnecting from it or killing it.
 RPC Call Api
 ----------------
 
+RPC calls are fully handshaken, the callback is invoked when the worker signals that the
+call completed.
+
 ### coproc.call( method [, arg [...]], callback(err, result) )
 
 Invoke the named `method` with the given argument(s), and wait for the results.  Calls can
@@ -134,12 +137,15 @@ faster to `emit` events.
 Data Transfer Api
 ----------------
 
+Emitted events are one-way, they are sent to the remote process without any acknowledgement
+expected or waited for.  However, events and calls are sent in order, so receipt of a batch
+of events can be confirmed with a single handshaken `call` at the end.
+
 ### coproc.emit( event [, value [...]] )
 
 Emit a named event and optional value(s) to the registered event listener.  Emit can pass
 zero, one, or multiple arguments.  Events are sent back-to-back in order, no response is
-returned or expected.  Note that events and calls are sent and dispatched in order, so
-receipt of a batch of events can be confirmed with a single `call` after the batch.
+returned or expected.  Note that events and calls are sent and dispatched in order.
 
 Events not listened for are silently discarded.  The `'error'` event is reserved, but
 currently unused.
