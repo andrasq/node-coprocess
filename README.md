@@ -15,10 +15,10 @@ of order.  Calls return (invoke their callback) when the response is received.
 
 Tested to work with node v0.6 through v16.
 
-    var coprocess = require('coproq');
+    var coproq = require('coproq');
 
     // create the worker process
-    var coproc = coprocess.fork(function() {
+    var coproc = coproq.fork(function() {
         // function implementing worker; must load depencies as if in a file
         var Coprocess = require('coproq').Coprocess;
         new Coprocess().listen({
@@ -37,7 +37,7 @@ Tested to work with node v0.6 through v16.
 Package Api
 ----------------
 
-### coprocess.Coprocess
+### coproq.Coprocess
 
 Coprocess implementation class.  A Coprocess instance can function as either the parent or
 the worker.  The parent-worker relationship is fully symmetric, parent and worker can both
@@ -54,13 +54,13 @@ The process control methods are
 - `fork` - create the worker process
 - `close` - terminate the worker process
 
-### coprocess.fork( scriptName | functionBody [,cb] )
+### coproq.fork( scriptName | functionBody [,cb] )
 
 Convenience function to create a pair of Coprocess objects and also launch the worker.
 Same as calling `fork` on a `new Coprocess()` object.
 
-    var coprocess = require('coproq');
-    coprocess.fork('./scripts/test.js', function() {
+    var coproq = require('coproq');
+    coproq.fork('./scripts/test.js', function() {
         // worker process has started
     })
 
